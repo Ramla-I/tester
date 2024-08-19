@@ -37,7 +37,7 @@ if [ ! -d 'moongen' ]; then
     exit 1
   fi
 
-  git -C 'moongen' checkout '525d9917c98a4760db72bb733cf6ad30550d6669'
+  git -C 'moongen' checkout '7746ff2f0afdbb222aa9cb220b48355e2d19552b'
   if [ $? -ne 0 ]; then
     echo '[FATAL] Could not check out the MoonGen commit'
     exit 1
