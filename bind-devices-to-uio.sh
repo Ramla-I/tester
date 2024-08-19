@@ -34,8 +34,8 @@ for pci in $(lspci -mm | cut -d ' ' -f 1 | tr '\n' ' '); do
         if [ -e "/sys/bus/pci/devices/$full_pci/driver" ]; then
           echo -n "$full_pci" | sudo tee "/sys/bus/pci/devices/$full_pci/driver/unbind" >/dev/null 2>&1
         fi
-        echo 'uio_pci_generic' | sudo tee "/sys/bus/pci/devices/$full_pci/driver_override" >/dev/null 2>&1
-        echo -n "$full_pci" | sudo tee "/sys/bus/pci/drivers/uio_pci_generic/bind" >/dev/null 2>&1
+        echo 'igb_uio' | sudo tee "/sys/bus/pci/devices/$full_pci/driver_override" >/dev/null 2>&1
+        echo -n "$full_pci" | sudo tee "/sys/bus/pci/drivers/igb_uio/bind" >/dev/null 2>&1
       fi
       ;;
   esac
