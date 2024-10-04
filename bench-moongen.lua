@@ -119,6 +119,31 @@ local packetInits = {
     }
   end
 }
+-- give latency packets different IP addresses to differentiate 
+local packetInitsLatency = {
+  [0] = function(buf, packetSize)
+    buf:getUdpPacket():fill{
+      ethSrc = "FF:FF:FF:FF:FF:FF",
+      ethDst = "00:00:00:00:00:00",
+      ip4Src = "128.18.0.0",
+      ip4Dst = "128.18.1.0",
+      udpSrc = 65535,
+      udpDst = 0,
+      pktLength = packetSize
+    }
+  end,
+  [1] = function(buf, packetSize)
+    buf:getUdpPacket():fill{
+      ethSrc = "00:00:00:00:00:00",
+      ethDst = "FF:FF:FF:FF:FF:FF",
+      ip4Src = "128.18.1.0",
+      ip4Dst = "128.18.0.0",
+      udpSrc = 0,
+      udpDst = 65535,
+      pktLength = packetSize
+    }
+  end
+}
 
 -- Helper function, has to be global because it's started as a task
 -- Note that MoonGen doesn't want us to create more than one timestamper, so we do all iterations inside the task
@@ -127,7 +152,7 @@ function _latencyTask(txQueue, rxQueue, layer, direction, flows, labels)
   local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
   local measureFunc = function()
     return timestamper:measureLatency(LATENCY_PACKETS_SIZE, function(buf)
-      packetInits[direction](buf, LATENCY_PACKETS_SIZE)
+      packetInitsLatency[direction](buf, LATENCY_PACKETS_SIZE)
       packetConfigs[direction][layer](buf:getUdpPacket(), counter)
       counter = (counter + 1) % flows
     end, 1) -- wait 1ms at most before declaring a packet lost, to avoid confusing old packets for new ones
