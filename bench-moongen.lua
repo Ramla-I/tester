@@ -42,6 +42,7 @@ function configure(parser)
   parser:option("-f --flows", "Number of flows to use, defaults to 60,000"):default(60000):convert(tonumber)
   parser:flag("-x --xchange", "Exchange order of devices, in case you messed up your wiring")
   parser:flag("-m --maglev", "Handle Maglev: add heatup in reverse, so it gets heartbeats, and reverse order of devices; only for standard-single")
+  parser:option("-t --throughputforlatency", "Only measures standard latency at the given specific total background load"):default(-2):convert(tonumber)
 end
 
 -- Helper function to summarize latencies: min, max, median, stdev, 99th
@@ -311,59 +312,62 @@ function measureStandard(queuePairs, extraPair, args)
   local bestTx = 0
   local lastLoss = 1
   local increased = false
-  for i = 1, THROUGHPUT_STEPS_COUNT do
-    io.write("[bench] Step " .. i .. ": " .. (#queuePairs * rate) .. " Mbps... ")
-    local tasks = {}
-    for i, pair in ipairs(queuePairs) do
-      tasks[i] = startMeasureThroughput(pair.tx, pair.rx, rate, args.layer, THROUGHPUT_STEPS_DURATION, pair.direction, args.flows, 1)
-    end
 
-    local loss = 0
-    for _, task in ipairs(tasks) do
-      loss = loss + task:wait()
-    end
+  if args.throughputforlatency == -2 then
+    for i = 1, THROUGHPUT_STEPS_COUNT do
+      io.write("[bench] Step " .. i .. ": " .. (#queuePairs * rate) .. " Mbps... ")
+      local tasks = {}
+      for i, pair in ipairs(queuePairs) do
+        tasks[i] = startMeasureThroughput(pair.tx, pair.rx, rate, args.layer, THROUGHPUT_STEPS_DURATION, pair.direction, args.flows, 1)
+      end
 
-    loss = loss / #queuePairs
+      local loss = 0
+      for _, task in ipairs(tasks) do
+        loss = loss + task:wait()
+      end
 
-    -- We may have been interrupted
-    if not mg.running() then
-      io.write("Interrupted\n")
-      os.exit(0)
-    end
+      loss = loss / #queuePairs
 
-    io.write("loss = " .. loss)
-    if loss == 1 then
-      io.write(", something is wrong!\n")
-      os.exit(1)
-    end
-    if not increased and (lastLoss - loss) < -0.05 then
-      io.write(", the loss went up significantly even though the rate went down, something is wrong!\n")
-      os.exit(1)
-    end
-    lastLoss = loss
-    io.write("\n")
-    io.flush()
+      -- We may have been interrupted
+      if not mg.running() then
+        io.write("Interrupted\n")
+        os.exit(0)
+      end
 
-    if (loss <= args.acceptableloss) then
-      bestRate = rate
-      bestTx = tx
-      lowerBound = rate
-      rate = rate + (upperBound - rate)/2
-      increased = true
-    else
-      upperBound = rate
-      rate = lowerBound + (rate - lowerBound)/2
-      increased = false
-    end
+      io.write("loss = " .. loss)
+      if loss == 1 then
+        io.write(", something is wrong!\n")
+        os.exit(1)
+      end
+      if not increased and (lastLoss - loss) < -0.05 then
+        io.write(", the loss went up significantly even though the rate went down, something is wrong!\n")
+        os.exit(1)
+      end
+      lastLoss = loss
+      io.write("\n")
+      io.flush()
 
-    -- Also stop if the first step is already successful, let's not do pointless iterations
-    if (i == THROUGHPUT_STEPS_COUNT) or (loss <= args.acceptableloss and bestRate == upperBound) then
-      -- Note that we write 'bestRate' here, i.e. the last rate with acceptable loss, not the current one
-      -- (which may cause unacceptable loss since our binary search is bounded in steps)
-      local tputFile = io.open(RESULTS_FOLDER_NAME .. "/" .. RESULTS_THROUGHPUT_FILE_NAME, "w")
-      tputFile:write(math.floor(#queuePairs * bestRate) .. "\n")
-      tputFile:close()
-      break
+      if (loss <= args.acceptableloss) then
+        bestRate = rate
+        bestTx = tx
+        lowerBound = rate
+        rate = rate + (upperBound - rate)/2
+        increased = true
+      else
+        upperBound = rate
+        rate = lowerBound + (rate - lowerBound)/2
+        increased = false
+      end
+
+      -- Also stop if the first step is already successful, let's not do pointless iterations
+      if (i == THROUGHPUT_STEPS_COUNT) or (loss <= args.acceptableloss and bestRate == upperBound) then
+        -- Note that we write 'bestRate' here, i.e. the last rate with acceptable loss, not the current one
+        -- (which may cause unacceptable loss since our binary search is bounded in steps)
+        local tputFile = io.open(RESULTS_FOLDER_NAME .. "/" .. RESULTS_THROUGHPUT_FILE_NAME, "w")
+        tputFile:write(math.floor(#queuePairs * bestRate) .. "\n")
+        tputFile:close()
+        break
+      end
     end
   end
 
@@ -385,6 +389,10 @@ function measureStandard(queuePairs, extraPair, args)
   -- override if necessary, see description of the parser option
   if args.latencyload ~= -2 then
     latencyRates = {args.latencyload / #queuePairs}
+  end
+
+  if args.throughputforlatency ~= -2 then
+    latencyRates = {args.throughputforlatency / #queuePairs}
   end
 
   local latencyLabels = {}
