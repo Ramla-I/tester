@@ -9,4 +9,4 @@ results/
 config
 
 # submodule
-dpdk-kmods
+dpdk-kmods/
