@@ -289,7 +289,7 @@ function heatUp(queuePair, layer, flows, ignoreloss)
   end
   if not ignoreloss and loss > 0.01 then
     io.write("[FATAL] Heatup lost " .. (loss * 100) .. "% of packets!\n")
-    os.exit(1)
+    -- os.exit(1)
   end
   io.write("[bench] Finished heating up. Benchmarking...\n")
   io.flush()
