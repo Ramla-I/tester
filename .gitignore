@@ -10,3 +10,6 @@ config
 
 # submodule
 dpdk-kmods/
+
+.DS_Store
+
