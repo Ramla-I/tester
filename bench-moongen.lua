@@ -153,7 +153,7 @@ function _latencyTask(txQueue, rxQueue, layer, direction, flows, labels)
   local timestamper = ts:newUdpTimestamper(txQueue, rxQueue)
   local measureFunc = function()
     return timestamper:measureLatency(LATENCY_PACKETS_SIZE, function(buf)
-      packetInitsLatency[direction](buf, LATENCY_PACKETS_SIZE)
+      packetInits[direction](buf, LATENCY_PACKETS_SIZE)
       packetConfigs[direction][layer](buf:getUdpPacket(), counter)
       counter = (counter + 1) % flows
     end, 1) -- wait 1ms at most before declaring a packet lost, to avoid confusing old packets for new ones
